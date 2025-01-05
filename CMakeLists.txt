@@ -17,12 +17,15 @@ set(Headers
     ./Order_Book/Limit.hpp
     ./Order_Book/Order.hpp
     ./Order_Book/AVLTree.hpp
+    ./Process_Orders/OrderPipeline.hpp
 )
 set(Sources
     ./Order_Book/Book.cpp
     ./Order_Book/Limit.cpp
     ./Order_Book/Order.cpp
-    ./Order_Book/AVLTree.hpp
+    ./Order_Book/AVLTree.cpp
+    ./Process_Orders/OrderPipeline.cpp
+
 )
 
 add_library(${PROJECT_NAME}_lib STATIC ${Sources} ${Headers})
