@@ -1,6 +1,7 @@
 #ifndef BOOK_HPP
 #define BOOK_HPP
 
+#include "AVLTree.hpp"
 #include <unordered_map>
 #include <vector>
 #include <random>
@@ -11,13 +12,15 @@ class Order;
 
 class Book {
 private:
-	Limit* buyTree;      // AVL tree for buy orders
-	Limit* sellTree;     // AVL tree for sell orders	
+	// AVL trees for different order types
+	AVLTree buyTree;
+	AVLTree sellTree;
+	AVLTree stopBuyTree;
+	AVLTree stopSellTree;
+
+	// Book edges
 	Limit* lowestSell;
 	Limit* highestBuy;
-
-	Limit* stopBuyTree;  // AVL tree for stop buy orders
-	Limit* stopSellTree; // AVL tree for stop sell orders
 	Limit* highestStopSell;
 	Limit* lowestStopBuy;
 
@@ -26,21 +29,20 @@ private:
 	std::unordered_map<int, Limit*> limitSellMap;
 	std::unordered_map<int, Limit*> stopMap;
 
+	// Helper functions
 	void addLimit(int limitPrice, bool buyOrSell);
 	void addStop(int stopPrice, bool buyOrSell);
-	Limit* insert(Limit* root, Limit* limit, Limit* parent = nullptr);
-	Limit* insertStop(Limit* root, Limit* limit, Limit* parent = nullptr);
 	void updateBookEdgeInsert(Limit* newLimit);
 	void updateStopBookEdgeInsert(Limit* newStop);
 	void updateBookEdgeDelete(Limit* limit);
 	void updateStopBookEdgeDelete(Limit* stop);
-	void changeBookRoots(Limit* limit);
-	void changeStopBookRoots(Limit* stop);
 	void deleteLimit(Limit* limit);
 	void deleteStop(Limit* stop);
 	void deleteFromOrderMap(int orderId);
 	void deleteFromLimitMaps(int limitPrice, bool buyOrSell);
 	void deleteFromStopMap(int stopPrice);
+
+	// Order execution helpers
 	int limitOrderAsMarketOrder(int orderId, bool buyOrSell, int shares, int limitPrice);
 	int stopOrderAsMarketOrder(int orderId, bool buyOrSell, int shares, int stopPrice);
 	int currentOrderAsMarketOrder(Order* headOrder, bool buyOrSell);
@@ -48,19 +50,6 @@ private:
 	void executeStopOrders(bool buyOrSell);
 	void stopLimitOrderToLimitOrder(Order* headOrder, bool buyOrSell);
 	void marketOrderHelper(int orderId, bool buyOrSell, int shares);
-
-	// Balance AVL tree
-	int limitHeightDifference(Limit* limit);
-	Limit* rr_rotate(Limit* limit);
-	Limit* ll_rotate(Limit* limit);
-	Limit* lr_rotate(Limit* limit);
-	Limit* rl_rotate(Limit* limit);
-	Limit* balance(Limit* limit);
-	Limit* rr_rotateStop(Limit* limit);
-	Limit* ll_rotateStop(Limit* limit);
-	Limit* lr_rotateStop(Limit* limit);
-	Limit* rl_rotateStop(Limit* limit);
-	Limit* balanceStop(Limit* limit);
 
 public:
 	Book();
@@ -70,17 +59,17 @@ public:
 	int executedOrdersCount = 0;
 	int AVLTreeBalanceCount = 0;
 
-	// Getter and setter
-	Limit* getBuyTree() const;
-	Limit* getSellTree() const;
-	Limit* getLowestSell() const;
-	Limit* getHighestBuy() const;
-	Limit* getStopBuyTree() const;
-	Limit* getStopSellTree() const;
-	Limit* getHighestStopSell() const;
-	Limit* getLowestStopBuy() const;
+	// Getters
+	AVLTree& getBuyTree() { return buyTree; }
+	AVLTree& getSellTree() { return sellTree; }
+	Limit* getLowestSell() const { return lowestSell; }
+	Limit* getHighestBuy() const { return highestBuy; }
+	AVLTree& getStopBuyTree() { return stopBuyTree; }
+	AVLTree& getStopSellTree() { return stopSellTree; }
+	Limit* getHighestStopSell() const { return highestStopSell; }
+	Limit* getLowestStopBuy() const { return lowestStopBuy; }
 
-	// Functions for different types of orders
+	// Order management functions
 	void marketOrder(int orderId, bool buyOrSell, int shares);
 	void addLimitOrder(int orderId, bool buyOrSell, int shares, int limitPrice);
 	void cancelLimitOrder(int orderId);
@@ -92,6 +81,7 @@ public:
 	void cancelStopLimitOrder(int orderId);
 	void modifyStopLimitOrder(int orderId, int newShares, int newLimitPrice, int newStopPrice);
 
+	// Search functions
 	int getLimitHeight(Limit* limit) const;
 	Order* searchOrderMap(int orderId) const;
 	Limit* searchLimitMaps(int limitPrice, bool buyOrSell) const;
@@ -102,9 +92,6 @@ public:
 	void printOrder(int orderId) const;
 	void printBookEdges() const;
 	void printOrderBook() const;
-	std::vector<int> inOrderTreeTraversal(Limit* root) const;
-	std::vector<int> preOrderTreeTraversal(Limit* root) const;
-	std::vector<int> postOrderTreeTraversal(Limit* root) const;
 
 	// generating sample data
 	Order* getRandomOrder(int key, std::mt19937 gen) const;

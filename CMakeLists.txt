@@ -16,11 +16,13 @@ set(Headers
     ./Order_Book/Book.hpp
     ./Order_Book/Limit.hpp
     ./Order_Book/Order.hpp
+    ./Order_Book/AVLTree.hpp
 )
 set(Sources
     ./Order_Book/Book.cpp
     ./Order_Book/Limit.cpp
     ./Order_Book/Order.cpp
+    ./Order_Book/AVLTree.hpp
 )
 
 add_library(${PROJECT_NAME}_lib STATIC ${Sources} ${Headers})
