@@ -4,7 +4,7 @@
 #include <string>
 #include <unordered_map>
 #include <string_view>
-#include <stream>
+#include <sstream>
 
 class Book;
 
@@ -15,7 +15,7 @@ private:
 	using OrderFunction = void(OrderPipeline::*)(std::istringstream&);
 	std::unordered_map<std::string_view, OrderFunction> orderFunctions;
 
-	void processMarketOrder(stsd::istringstream& iss);
+	void processMarketOrder(std::istringstream& iss);
 	void processAddLimitOrder(std::istringstream& iss);
 	void processCancelLimitOrder(std::istringstream& iss);
 	void processModifyLimitOrder(std::istringstream& iss);

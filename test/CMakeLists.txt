@@ -1,19 +1,3 @@
-cmake_minimum_required (VERSION 3.8)
-
-set(This OrderBookTests)
-
-set(Sources
-    OrderBookTests.cpp
-    OrdersTests.cpp
-)
-
-add_executable(${This} ${Sources})
-target_link_libraries(${This} PUBLIC
-    gtest_main
-    LowLatencyTradingSystem_lib
-)
-
-add_test(
-    NAME ${This}
-    COMMAND ${This}
-)
+version https://git-lfs.github.com/spec/v1
+oid sha256:4877c44f516043705e02ba87f9a347c4d8e55d72e27f6bac82f6a3568fa80440
+size 292

@@ -6,68 +6,101 @@
 #include <random>
 #include <iterator>
 
-Book::Book() :
-    buyTree(nullptr),
-    sellTree(nullptr),
-    stopBuyTree(nullptr),
-    stopSellTree(nullptr),
-    lowestSell(nullptr),
-    highestBuy(nullptr),
-    highestStopSell(nullptr),
-    lowestStopBuy(nullptr) {}
+Book::Book() {
+    buyTree = nullptr;
+    sellTree = nullptr;
+    lowestSell = nullptr;
+    highestBuy = nullptr;
+    stopBuyTree = nullptr;
+    stopSellTree = nullptr;
+    highestStopSell = nullptr;
+    lowestStopBuy = nullptr;
+}
 
 Book::~Book() {
-	for (auto& [id, order] : orderMap) {
-		delete order;
-	}
-	orderMap.clear();
+    for (auto& [id, order] : orderMap) {
+        delete order;
+    }
+    orderMap.clear();
 
-	for (auto& [limitPrice, limit] : limitBuyMap) {
-		delete limit;
-	}
+    for (auto& [limitPrice, limit] : limitBuyMap) {
+        delete limit;
+    }
 
-	limitBuyMap.clear();
+    limitBuyMap.clear();
 
-	for (auto& [limitPrice, limit] : limitSellMap) {
-		delete limit;
-	}
-	limitSellMap.clear();
+    for (auto& [limitPrice, limit] : limitSellMap) {
+        delete limit;
+    }
+    limitSellMap.clear();
 
-	for (auto& [stopPrice, stop] : stopMap) {
-		delete stop;
-	}
-	stopMap.clear();
+    for (auto& [stopPrice, stop] : stopMap) {
+        delete stop;
+    }
+    stopMap.clear();
+}
+
+Limit* Book::getBuyTree() const {
+    return buyTree;
+}
+
+Limit* Book::getSellTree() const {
+    return sellTree;
+}
+
+Limit* Book::getLowestSell() const {
+    return lowestSell;
+}
+
+Limit* Book::getHighestBuy() const {
+    return highestBuy;
+}
+
+Limit* Book::getStopBuyTree() const {
+    return stopBuyTree;
+}
+
+Limit* Book::getStopSellTree() const {
+    return stopSellTree;
+}
+
+Limit* Book::getHighestStopSell() const {
+    return highestStopSell;
+}
+
+Limit* Book::getLowestStopBuy() const {
+    return lowestStopBuy;
 }
 
 //exec market order
 void Book::marketOrder(int orderId, bool buyOrSell, int shares) {
-	executedOrdersCount = 0;
-	AVLTreeBalanceCount = 0;
-	marketOrderHelper(orderId, buyOrSell, shares);
+    executedOrdersCount = 0;
+    AVLTreeBalanceCount = 0;
+    marketOrderHelper(orderId, buyOrSell, shares);
 
-	executeStopOrders(buyOrSell);
+    executeStopOrders(buyOrSell);
 }
 
 void Book::addLimitOrder(int orderId, bool buyOrSell, int shares, int limitPrice) {
-	AVLTreeBalanceCount = 0;
-	// Order being executed immediately
-	shares = limitOrderAsMarketOrder(orderId, buyOrSell, shares, limitPrice);
+    AVLTreeBalanceCount = 0;
+    // Order being executed immediately
+    shares = limitOrderAsMarketOrder(orderId, buyOrSell, shares, limitPrice);
 
-	if (shares != 0) {
-		Order* newOrder = new Order(orderId, buyOrSell, shares, limitPrice);
-		orderMap.emplace(orderId, newOrder);
+    if (shares != 0) {
+        Order* newOrder = new Order(orderId, buyOrSell, shares, limitPrice);
+        orderMap.emplace(orderId, newOrder);
 
-		auto& limitMap = buyOrSell ? limitBuyMap : limitSellMap;
+        auto& limitMap = buyOrSell ? limitBuyMap : limitSellMap;
 
-		if (limitMap.find(limitPrice) == limitMap.end()) {
-			addLimit(limitPrice, newOrder->getBuyOrSell());
-		}
+        if (limitMap.find(limitPrice) == limitMap.end()) {
+            addLimit(limitPrice, newOrder->getBuyOrSell());
+        }
 
-		limitMap.at(limitPrice)->append(newOrder);
-	}
-	else {
-		executeStopOrders(buyOrSell);
-	}
+        limitMap.at(limitPrice)->addOrder(newOrder);
+    }
+    else {
+        executeStopOrders(buyOrSell);
+    }
 }
 
 // Delete a limit order from the book
@@ -85,6 +118,7 @@ void Book::cancelLimitOrder(int orderId)
             deleteLimit(order->getParentLimit());
         }
         deleteFromOrderMap(orderId);
+        // limitOrders.erase(order);
         delete order;
     }
 }
@@ -110,7 +144,7 @@ void Book::modifyLimitOrder(int orderId, int newShares, int newLimit)
         {
             addLimit(newLimit, order->getBuyOrSell());
         }
-        limitMap.at(newLimit)->append(order);
+        limitMap.at(newLimit)->addOrder(order);
     }
 }
 
@@ -131,7 +165,8 @@ void Book::addStopOrder(int orderId, bool buyOrSell, int shares, int stopPrice)
         {
             addStop(stopPrice, newOrder->getBuyOrSell());
         }
-        stopMap.at(stopPrice)->append(newOrder);
+        stopMap.at(stopPrice)->addOrder(newOrder);
+        // stopOrders.insert(newOrder);
     }
 }
 
@@ -172,7 +207,7 @@ void Book::modifyStopOrder(int orderId, int newShares, int newStopPrice)
         {
             addStop(newStopPrice, order->getBuyOrSell());
         }
-        stopMap.at(newStopPrice)->append(order);
+        stopMap.at(newStopPrice)->addOrder(order);
     }
 }
 
@@ -192,7 +227,7 @@ void Book::addStopLimitOrder(int orderId, bool buyOrSell, int shares, int limitP
         {
             addStop(stopPrice, newOrder->getBuyOrSell());
         }
-        stopMap.at(stopPrice)->append(newOrder);
+        stopMap.at(stopPrice)->addOrder(newOrder);
     }
 }
 
@@ -233,7 +268,7 @@ void Book::modifyStopLimitOrder(int orderId, int newShares, int newLimitPrice, i
         {
             addStop(newStopPrice, order->getBuyOrSell());
         }
-        stopMap.at(newStopPrice)->append(order);
+        stopMap.at(newStopPrice)->addOrder(order);
     }
 }
 
@@ -312,42 +347,110 @@ void Book::printBookEdges() const
         << "Sell edge: " << lowestSell->getLimitPrice() << std::endl;
 }
 
-void Book::printOrderBook() const {
-    // Print stop buy orders
-    std::vector<int> prices = stopBuyTree.getInOrder();
-    std::cout << "Stop Buy Orders: [";
-    for (size_t i = 0; i < prices.size(); ++i) {
-        std::cout << prices[i] << "-" << searchStopMap(prices[i])->getTotalVolume();
-        if (i != prices.size() - 1) std::cout << ", ";
+void Book::printOrderBook() const
+{
+    std::vector<int> vec = inOrderTreeTraversal(getStopBuyTree());
+    std::cout << "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        std::cout << vec[i] << "-" << searchStopMap(vec[i])->getTotalVolume();
+        if (i != 0 && i != vec.size() - 1 && vec[i] < vec[i - 1]) {
+            throw std::runtime_error("Error: vector is error");
+        }
+        if (i != vec.size() - 1) {
+            std::cout << ", ";
+        }
     }
-    std::cout << "]\n";
+    std::cout << "]" << std::endl;
 
-    // Print stop sell orders
-    prices = stopSellTree.getInOrder();
-    std::cout << "Stop Sell Orders: [";
-    for (size_t i = 0; i < prices.size(); ++i) {
-        std::cout << prices[i] << "-" << searchStopMap(prices[i])->getTotalVolume();
-        if (i != prices.size() - 1) std::cout << ", ";
+    vec = inOrderTreeTraversal(getStopSellTree());
+    std::cout << "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        std::cout << vec[i] << "-" << searchStopMap(vec[i])->getTotalVolume();
+        if (i != 0 && i != vec.size() - 1 && vec[i] < vec[i - 1]) {
+            throw std::runtime_error("Error: Vector is error");
+        }
+        if (i != vec.size() - 1) {
+            std::cout << ", ";
+        }
     }
-    std::cout << "]\n";
+    std::cout << "]" << std::endl;
 
-    // Print buy orders
-    prices = buyTree.getInOrder();
-    std::cout << "Buy Orders: [";
-    for (size_t i = 0; i < prices.size(); ++i) {
-        std::cout << prices[i] << "-" << searchLimitMaps(prices[i], true)->getTotalVolume();
-        if (i != prices.size() - 1) std::cout << ", ";
+    vec = inOrderTreeTraversal(getBuyTree());
+    std::cout << "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        std::cout << vec[i] << "-" << searchLimitMaps(vec[i], true)->getTotalVolume();
+        if (i != 0 && i != vec.size() - 1 && vec[i] < vec[i - 1]) {
+            throw std::runtime_error("Error: vector is error");
+        }
+        if (i != vec.size() - 1) {
+            std::cout << ", ";
+        }
     }
-    std::cout << "]\n";
+    std::cout << "]" << std::endl;
 
-    // Print sell orders
-    prices = sellTree.getInOrder();
-    std::cout << "Sell Orders: [";
-    for (size_t i = 0; i < prices.size(); ++i) {
-        std::cout << prices[i] << "-" << searchLimitMaps(prices[i], false)->getTotalVolume();
-        if (i != prices.size() - 1) std::cout << ", ";
+    vec = inOrderTreeTraversal(getSellTree());
+    std::cout << "[";
+    for (size_t i = 0; i < vec.size(); ++i) {
+        std::cout << vec[i] << "-" << searchLimitMaps(vec[i], false)->getTotalVolume();
+        if (i != 0 && i != vec.size() - 1 && vec[i] < vec[i - 1]) {
+            throw std::runtime_error("Error: Vector is error");
+        }
+        if (i != vec.size() - 1) {
+            std::cout << ", ";
+        }
     }
-    std::cout << "]\n";
+    std::cout << "]" << std::endl;
+}
+
+std::vector<int> Book::inOrderTreeTraversal(Limit* root) const
+{
+    std::vector<int> result;
+    if (root == nullptr)
+        return result;
+
+    std::vector<int> leftSubtree = inOrderTreeTraversal(root->getLeftChild());
+    result.insert(result.end(), leftSubtree.begin(), leftSubtree.end());
+
+    result.push_back(root->getLimitPrice());
+
+    std::vector<int> rightSubtree = inOrderTreeTraversal(root->getRightChild());
+    result.insert(result.end(), rightSubtree.begin(), rightSubtree.end());
+
+    return result;
+}
+
+std::vector<int> Book::preOrderTreeTraversal(Limit* root) const
+{
+    std::vector<int> result;
+    if (root == nullptr)
+        return result;
+
+    result.push_back(root->getLimitPrice());
+
+    std::vector<int> leftSubtree = preOrderTreeTraversal(root->getLeftChild());
+    result.insert(result.end(), leftSubtree.begin(), leftSubtree.end());
+
+    std::vector<int> rightSubtree = preOrderTreeTraversal(root->getRightChild());
+    result.insert(result.end(), rightSubtree.begin(), rightSubtree.end());
+
+    return result;
+}
+
+std::vector<int> Book::postOrderTreeTraversal(Limit* root) const
+{
+    std::vector<int> result;
+    if (root == nullptr)
+        return result;
+
+    std::vector<int> leftSubtree = postOrderTreeTraversal(root->getLeftChild());
+    result.insert(result.end(), leftSubtree.begin(), leftSubtree.end());
+
+    std::vector<int> rightSubtree = postOrderTreeTraversal(root->getRightChild());
+    result.insert(result.end(), rightSubtree.begin(), rightSubtree.end());
+
+    result.push_back(root->getLimitPrice());
+
+    return result;
 }
 
 // Return a random active order for testing purposes
@@ -423,21 +526,67 @@ void Book::addLimit(int limitPrice, bool buyOrSell)
     }
 }
 
-void Book::addStop(int stopPrice, bool buyOrSell) {
+void Book::addStop(int stopPrice, bool buyOrSell)
+{
     auto& tree = buyOrSell ? stopBuyTree : stopSellTree;
     auto& bookEdge = buyOrSell ? lowestStopBuy : highestStopSell;
 
     Limit* newStop = new Limit(stopPrice, buyOrSell);
     stopMap.emplace(stopPrice, newStop);
 
-    tree.insertLimit(newStop);
-
-    if (tree.isEmpty()) {
+    if (tree == nullptr)
+    {
+        tree = newStop;
         bookEdge = newStop;
     }
-    else {
+    else
+    {
+        Limit* root = insertStop(tree, newStop);
         updateStopBookEdgeInsert(newStop);
     }
+}
+
+// Insert a limit into its binary search tree
+Limit* Book::insert(Limit* root, Limit* limit, Limit* parent)
+{
+    if (root == nullptr)
+    {
+        limit->setParent(parent);
+        return limit;
+    }
+    if (limit->getLimitPrice() < root->getLimitPrice())
+    {
+        root->setLeftChild(insert(root->getLeftChild(), limit, root));
+        root = balance(root);
+    }
+    else if (limit->getLimitPrice() > root->getLimitPrice())
+    {
+        root->setRightChild(insert(root->getRightChild(), limit, root));
+        root = balance(root);
+    }
+
+    return root;
+}
+
+// Insert a limit into its stop binary search tree
+Limit* Book::insertStop(Limit* root, Limit* limit, Limit* parent)
+{
+    if (root == nullptr)
+    {
+        limit->setParent(parent);
+        return limit;
+    }
+    if (limit->getLimitPrice() < root->getLimitPrice())
+    {
+        root->setLeftChild(insertStop(root->getLeftChild(), limit, root));
+        root = balanceStop(root);
+    }
+    else if (limit->getLimitPrice() > root->getLimitPrice())
+    {
+        root->setRightChild(insertStop(root->getRightChild(), limit, root));
+        root = balanceStop(root);
+    }
+    return root;
 }
 
 // Update the edge of the book if new limit is on edge of the book
@@ -478,65 +627,77 @@ void Book::updateStopBookEdgeInsert(Limit* newStop)
     }
 }
 
-void Book::updateBookEdgeDelete(Limit* limit) {
+// Update the edge of the book if current edge of the book is empty
+void Book::updateBookEdgeDelete(Limit* limit)
+{
     auto& bookEdge = limit->getBuyOrSell() ? highestBuy : lowestSell;
     auto& tree = limit->getBuyOrSell() ? buyTree : sellTree;
 
-    if (limit == bookEdge) {
-        if (limit->getBuyOrSell()) {
-            // Find next highest buy
-            if (limit->getLeftChild() != nullptr) {
-                bookEdge = limit->getLeftChild();
-                while (bookEdge->getRightChild() != nullptr) {
-                    bookEdge = bookEdge->getRightChild();
-                }
+    if (limit == bookEdge)
+    {
+        if (bookEdge != tree)
+        {
+            if (limit->getBuyOrSell() && bookEdge->getLeftChild() != nullptr)
+            {
+                bookEdge = bookEdge->getLeftChild();
+            }
+            else if (!limit->getBuyOrSell() && bookEdge->getRightChild() != nullptr)
+            {
+                bookEdge = bookEdge->getRightChild();
             }
             else {
-                bookEdge = limit->getParent();
+                bookEdge = bookEdge->getParent();
             }
         }
         else {
-            // Find next lowest sell
-            if (limit->getRightChild() != nullptr) {
-                bookEdge = limit->getRightChild();
-                while (bookEdge->getLeftChild() != nullptr) {
-                    bookEdge = bookEdge->getLeftChild();
-                }
+            if (limit->getBuyOrSell() && bookEdge->getLeftChild() != nullptr)
+            {
+                bookEdge = bookEdge->getLeftChild();
+            }
+            else if (!limit->getBuyOrSell() && bookEdge->getRightChild() != nullptr)
+            {
+                bookEdge = bookEdge->getRightChild();
             }
             else {
-                bookEdge = limit->getParent();
+                bookEdge = nullptr;
             }
         }
     }
 }
 
-void Book::updateStopBookEdgeDelete(Limit* stop) {
-    auto& bookEdge = stop->getBuyOrSell() ? lowestStopBuy : highestStopSell;
-    auto& tree = stop->getBuyOrSell() ? stopBuyTree : stopSellTree;
+// Update the edge of the stop book if current edge of the stop book is empty
+void Book::updateStopBookEdgeDelete(Limit* stopLevel)
+{
+    auto& bookEdge = stopLevel->getBuyOrSell() ? lowestStopBuy : highestStopSell;
+    auto& tree = stopLevel->getBuyOrSell() ? stopBuyTree : stopSellTree;
 
-    if (stop == bookEdge) {
-        if (stop->getBuyOrSell()) {
-            // Find next lowest stop buy
-            if (stop->getRightChild() != nullptr) {
-                bookEdge = stop->getRightChild();
-                while (bookEdge->getLeftChild() != nullptr) {
-                    bookEdge = bookEdge->getLeftChild();
-                }
+    if (stopLevel == bookEdge)
+    {
+        if (bookEdge != tree)
+        {
+            if (stopLevel->getBuyOrSell() && bookEdge->getRightChild() != nullptr)
+            {
+                bookEdge = bookEdge->getRightChild();
+            }
+            else if (!stopLevel->getBuyOrSell() && bookEdge->getLeftChild() != nullptr)
+            {
+                bookEdge = bookEdge->getLeftChild();
             }
             else {
-                bookEdge = stop->getParent();
+                bookEdge = bookEdge->getParent();
             }
         }
         else {
-            // Find next highest stop sell
-            if (stop->getLeftChild() != nullptr) {
-                bookEdge = stop->getLeftChild();
-                while (bookEdge->getRightChild() != nullptr) {
-                    bookEdge = bookEdge->getRightChild();
-                }
+            if (stopLevel->getBuyOrSell() && bookEdge->getRightChild() != nullptr)
+            {
+                bookEdge = bookEdge->getRightChild();
+            }
+            else if (!stopLevel->getBuyOrSell() && bookEdge->getLeftChild() != nullptr)
+            {
+                bookEdge = bookEdge->getLeftChild();
             }
             else {
-                bookEdge = stop->getParent();
+                bookEdge = nullptr;
             }
         }
     }
@@ -582,20 +743,56 @@ void Book::changeStopBookRoots(Limit* stopLevel) {
     }
 }
 
-void Book::deleteLimit(Limit* limit) {
+void Book::deleteLimit(Limit* limit)
+{
     updateBookEdgeDelete(limit);
     deleteFromLimitMaps(limit->getLimitPrice(), limit->getBuyOrSell());
+    changeBookRoots(limit);
 
-    auto& tree = limit->getBuyOrSell() ? buyTree : sellTree;
-    tree.deleteLimit(limit);
+    Limit* parent = limit->getParent();
+    int limitPrice = limit->getLimitPrice();
+    delete limit;
+    while (parent != nullptr)
+    {
+        parent = balance(parent);
+        if (parent->getParent() != nullptr)
+        {
+            if (parent->getParent()->getLimitPrice() > limitPrice)
+            {
+                parent->getParent()->setLeftChild(parent);
+            }
+            else {
+                parent->getParent()->setRightChild(parent);
+            }
+        }
+        parent = parent->getParent();
+    }
 }
 
-void Book::deleteStop(Limit* stop) {
-    updateStopBookEdgeDelete(stop);
-    deleteFromStopMap(stop->getLimitPrice());
+void Book::deleteStop(Limit* stopLevel)
+{
+    updateStopBookEdgeDelete(stopLevel);
+    deleteFromStopMap(stopLevel->getLimitPrice());
+    changeStopBookRoots(stopLevel);
 
-    auto& tree = stop->getBuyOrSell() ? stopBuyTree : stopSellTree;
-    tree.deleteLimit(stop);
+    Limit* parent = stopLevel->getParent();
+    int stopPrice = stopLevel->getLimitPrice();
+    delete stopLevel;
+    while (parent != nullptr)
+    {
+        parent = balanceStop(parent);
+        if (parent->getParent() != nullptr)
+        {
+            if (parent->getParent()->getLimitPrice() > stopPrice)
+            {
+                parent->getParent()->setLeftChild(parent);
+            }
+            else {
+                parent->getParent()->setRightChild(parent);
+            }
+        }
+        parent = parent->getParent();
+    }
 }
 
 void Book::deleteFromOrderMap(int orderId)
@@ -749,11 +946,11 @@ void Book::executeStopOrders(bool buyOrSell)
                     deleteStop(lowestStopBuy);
                 }
                 deleteFromOrderMap(headOrder->getOrderId());
-=                delete headOrder;
+                delete headOrder;
                 marketOrderHelper(0, true, shares);
             }
             else {
-=                stopLimitOrderToLimitOrder(headOrder, buyOrSell);
+                stopLimitOrderToLimitOrder(headOrder, buyOrSell);
             }
         }
     }
@@ -804,7 +1001,7 @@ void Book::stopLimitOrderToLimitOrder(Order* headOrder, bool buyOrSell)
         {
             addLimit(headOrder->getLimit(), buyOrSell);
         }
-        limitMap.at(headOrder->getLimit())->append(headOrder);
+        limitMap.at(headOrder->getLimit())->addOrder(headOrder);
     }
 }
 
@@ -832,4 +1029,168 @@ void Book::marketOrderHelper(int orderId, bool buyOrSell, int shares)
         bookEdge->getHeadOrder()->partiallyFillOrder(shares);
         executedOrdersCount += 1;
     }
+}
+
+// Get height difference between a limits children
+int Book::limitHeightDifference(Limit* limit) {
+    int l_height = getLimitHeight(limit->getLeftChild());
+    int r_height = getLimitHeight(limit->getRightChild());
+    int b_factor = l_height - r_height;
+    return b_factor;
+}
+
+// RR rotation for AVL restructure
+Limit* Book::rr_rotate(Limit* parent) {
+    Limit* newParent = parent->getRightChild();
+    parent->setRightChild(newParent->getLeftChild());
+    if (newParent->getLeftChild() != nullptr)
+    {
+        newParent->getLeftChild()->setParent(parent);
+    }
+    newParent->setLeftChild(parent);
+    if (parent->getParent() != nullptr)
+    {
+        newParent->setParent(parent->getParent());
+    }
+    else {
+        newParent->setParent(nullptr);
+        auto& tree = parent->getBuyOrSell() ? buyTree : sellTree;
+        tree = newParent;
+    }
+    parent->setParent(newParent);
+    return newParent;
+}
+
+// LL rotation for AVL restructure
+Limit* Book::ll_rotate(Limit* parent) {
+    Limit* newParent = parent->getLeftChild();
+    parent->setLeftChild(newParent->getRightChild());
+    if (newParent->getRightChild() != nullptr)
+    {
+        newParent->getRightChild()->setParent(parent);
+    }
+    newParent->setRightChild(parent);
+    if (parent->getParent() != nullptr)
+    {
+        newParent->setParent(parent->getParent());
+    }
+    else {
+        newParent->setParent(nullptr);
+        auto& tree = parent->getBuyOrSell() ? buyTree : sellTree;
+        tree = newParent;
+    }
+    parent->setParent(newParent);
+    return newParent;
+}
+
+// LR rotation for AVL restructure
+Limit* Book::lr_rotate(Limit* parent) {
+    Limit* newParent = parent->getLeftChild();
+    parent->setLeftChild(rr_rotate(newParent));
+    return ll_rotate(parent);
+}
+
+// RL rotation for AVL restructure
+Limit* Book::rl_rotate(Limit* parent) {
+    Limit* newParent = parent->getRightChild();
+    parent->setRightChild(ll_rotate(newParent));
+    return rr_rotate(parent);
+}
+
+// Check if the AVL tree needs to be restructured
+Limit* Book::balance(Limit* limit) {
+    int bal_factor = limitHeightDifference(limit);
+    if (bal_factor > 1) {
+        if (limitHeightDifference(limit->getLeftChild()) >= 0)
+            limit = ll_rotate(limit);
+        else
+            limit = lr_rotate(limit);
+        AVLTreeBalanceCount += 1;
+    }
+    else if (bal_factor < -1) {
+        if (limitHeightDifference(limit->getRightChild()) > 0)
+            limit = rl_rotate(limit);
+        else
+            limit = rr_rotate(limit);
+        AVLTreeBalanceCount += 1;
+    }
+    return limit;
+}
+
+// RR rotation for AVL stop tree restructure
+Limit* Book::rr_rotateStop(Limit* parent) {
+    Limit* newParent = parent->getRightChild();
+    parent->setRightChild(newParent->getLeftChild());
+    if (newParent->getLeftChild() != nullptr)
+    {
+        newParent->getLeftChild()->setParent(parent);
+    }
+    newParent->setLeftChild(parent);
+    if (parent->getParent() != nullptr)
+    {
+        newParent->setParent(parent->getParent());
+    }
+    else {
+        newParent->setParent(nullptr);
+        auto& tree = parent->getBuyOrSell() ? stopBuyTree : stopSellTree;
+        tree = newParent;
+    }
+    parent->setParent(newParent);
+    return newParent;
+}
+
+// LL rotation for AVL stop tree restructure
+Limit* Book::ll_rotateStop(Limit* parent) {
+    Limit* newParent = parent->getLeftChild();
+    parent->setLeftChild(newParent->getRightChild());
+    if (newParent->getRightChild() != nullptr)
+    {
+        newParent->getRightChild()->setParent(parent);
+    }
+    newParent->setRightChild(parent);
+    if (parent->getParent() != nullptr)
+    {
+        newParent->setParent(parent->getParent());
+    }
+    else {
+        newParent->setParent(nullptr);
+        auto& tree = parent->getBuyOrSell() ? stopBuyTree : stopSellTree;
+        tree = newParent;
+    }
+    parent->setParent(newParent);
+    return newParent;
+}
+
+// LR rotation for AVL stop tree restructure
+Limit* Book::lr_rotateStop(Limit* parent) {
+    Limit* newParent = parent->getLeftChild();
+    parent->setLeftChild(rr_rotateStop(newParent));
+    return ll_rotateStop(parent);
+}
+
+// RL rotation for AVL stop tree restructure
+Limit* Book::rl_rotateStop(Limit* parent) {
+    Limit* newParent = parent->getRightChild();
+    parent->setRightChild(ll_rotateStop(newParent));
+    return rr_rotateStop(parent);
+}
+
+// Check if the AVL stop tree needs to be restructured
+Limit* Book::balanceStop(Limit* limit) {
+    int bal_factor = limitHeightDifference(limit);
+    if (bal_factor > 1) {
+        if (limitHeightDifference(limit->getLeftChild()) >= 0)
+            limit = ll_rotateStop(limit);
+        else
+            limit = lr_rotateStop(limit);
+        AVLTreeBalanceCount += 1;
+    }
+    else if (bal_factor < -1) {
+        if (limitHeightDifference(limit->getRightChild()) > 0)
+            limit = rl_rotateStop(limit);
+        else
+            limit = rr_rotateStop(limit);
+        AVLTreeBalanceCount += 1;
+    }
+    return limit;
 }

@@ -18,7 +18,7 @@ private:
 	friend class Order;
 
 public:
-	Limit(int _limitPrice, bool _buyOrSell, int _size = 0; int _totalVolume = 0);
+	Limit(int limitPrice, bool buyOrSell, int size = 0, int totalVolume = 0);
 	~Limit();
 
 	Order *getHeadOrder() const;
