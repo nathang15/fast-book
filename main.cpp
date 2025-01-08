@@ -2,6 +2,7 @@
 #include "./Process_Orders/OrderPipeline.hpp"
 #include "./Order_Book/Book.hpp"
 #include "./Order_Book/Order.hpp"
+#include "./Forecaster/Forecaster.hpp"
 #include <iostream>
 #include <vector>
 #include <chrono>
@@ -11,23 +12,43 @@ int main() {
 
     OrderPipeline orderPipeline(book);
 
-    GenerateOrders generateOrders(book);
+    //GenerateOrders generateOrders(book);
 
-    generateOrders.createInitialOrders(10000, 500);
+    //generateOrders.createInitialOrders(10000, 500);
 
     orderPipeline.processOrdersFromFile("D:/low-latency-trading-system/initialOrders.txt");
 
-    generateOrders.createOrders(5000000);
+    //generateOrders.createOrders(5000000);
 
-    auto start = std::chrono::high_resolution_clock::now();
+    //auto start = std::chrono::high_resolution_clock::now();
 
-    orderPipeline.processOrdersFromFile("D:/low-latency-trading-system/orders.txt");
+    //orderPipeline.processOrdersFromFile("D:/low-latency-trading-system/orders.txt");
 
-    auto stop = std::chrono::high_resolution_clock::now();
+    //auto stop = std::chrono::high_resolution_clock::now();
 
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    //auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-    std::cout << "Time taken to process orders: " << duration.count() << " milliseconds" << std::endl;
+    //std::cout << "Time taken to process orders: " << duration.count() << " milliseconds" << std::endl;
+
+    // forecast
+    std::string response;
+    std::cout << "\nWould you like to forecast the stock price? (y/n): ";
+    std::getline(std::cin, response);
+
+    if (response == "y" || response == "Y") {
+        std::string dataPath;
+        std::cout << "Enter the path to data.csv: ";
+        std::getline(std::cin, dataPath);
+
+        Forecaster forecaster;
+        if (!forecaster.forecast(dataPath)) {
+            std::cerr << "Forecasting failed!" << std::endl;
+        }
+        else {
+            std::cout << "Forecast has been written to forecast.csv" << std::endl;
+        }
+    }
+
 
     delete book;
     return 0;

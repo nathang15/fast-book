@@ -5,27 +5,40 @@
 #include <vector>
 #include <random>
 #include <unordered_set>
+#include <array>
+#include "MemoryPool.hpp"
 
 class Limit;
 class Order;
 
 class Book {
 private:
-	Limit* buyTree;      // AVL tree for buy orders
-	Limit* sellTree;     // AVL tree for sell orders	
+	// Original pointers kept as-is
+	Limit* buyTree;
+	Limit* sellTree;
 	Limit* lowestSell;
 	Limit* highestBuy;
 
-	Limit* stopBuyTree;  // AVL tree for stop buy orders
-	Limit* stopSellTree; // AVL tree for stop sell orders
+	Limit* stopBuyTree;
+	Limit* stopSellTree;
 	Limit* highestStopSell;
 	Limit* lowestStopBuy;
 
+	// Original maps kept as-is
 	std::unordered_map<int, Order*> orderMap;
 	std::unordered_map<int, Limit*> limitBuyMap;
 	std::unordered_map<int, Limit*> limitSellMap;
 	std::unordered_map<int, Limit*> stopMap;
 
+	// Memory pools and optimization structures
+	MemoryPool<Order> orderPool;
+	MemoryPool<Limit> limitPool;
+	std::array<Limit*, 10000> buyLevels;
+	std::array<Limit*, 10000> sellLevels;
+	std::array<Limit*, 10000> stopBuyLevels;
+	std::array<Limit*, 10000> stopSellLevels;
+
+	// Original private methods
 	void addLimit(int limitPrice, bool buyOrSell);
 	void addStop(int stopPrice, bool buyOrSell);
 	Limit* insert(Limit* root, Limit* limit, Limit* parent = nullptr);
