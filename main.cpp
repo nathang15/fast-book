@@ -37,10 +37,32 @@ int main() {
 
     if (response == "y" || response == "Y") {
         std::string dataPath;
+        float spotPrice;
+
+        // Get data path
         std::cout << "Enter the path to data.csv: ";
         std::getline(std::cin, dataPath);
 
+        // Get spot price
+        std::cout << "Enter the spot price: ";
+        std::string priceInput;
+        std::getline(std::cin, priceInput);
+
+        try {
+            spotPrice = std::stof(priceInput);
+            if (spotPrice <= 0.0f) {
+                std::cerr << "Spot price must be positive!\n";
+                return 1;
+            }
+        }
+        catch (const std::exception& e) {
+            std::cerr << "Invalid spot price input!\n";
+            return 1;
+        }
+
         Forecaster forecaster;
+        forecaster.setSpotPrice(spotPrice);
+
         if (!forecaster.forecast(dataPath)) {
             std::cerr << "Forecasting failed!" << std::endl;
         }
@@ -48,7 +70,6 @@ int main() {
             std::cout << "Forecast has been written to forecast.csv" << std::endl;
         }
     }
-
 
     delete book;
     return 0;

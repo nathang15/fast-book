@@ -9,9 +9,14 @@
 
 class Forecaster {
 public:
-    Forecaster(int numThreads = 8) : m_numThreads(numThreads) {
+    Forecaster(int numThreads = 8) : m_numThreads(numThreads), m_spotPrice(0.0f) {
         omp_set_num_threads(m_numThreads);
     }
+
+    void setSpotPrice(float price) {
+        m_spotPrice = price;
+    }
+
     ~Forecaster() = default;
 
     bool forecast(const std::string& dataPath) {
@@ -29,7 +34,7 @@ public:
         }
 
         // Calculate volatility first
-        const float volatility = calculateVolatility(spotPrice, timeSteps, dataPath);
+        const float volatility = calculateVolatility(m_spotPrice, timeSteps, dataPath);
         if (volatility < 0) {
             // Clean up and return on error
             cleanup(stock, avgStock, nullptr);
@@ -41,6 +46,7 @@ public:
         std::cout << "           Stock Forecasting Tool\n";
         std::cout << "==============================================\n\n";
         std::cout << "Using market volatility: " << volatility << "\n";
+        std::cout << "Using spot price: " << m_spotPrice << "\n";
         std::cout << "Using " << m_numThreads << " thread(s)\n\n";
         std::cout << "Computing forecasts... ";
 
@@ -52,7 +58,7 @@ public:
             #pragma omp for schedule(dynamic)
             for (int32_t i = 0; i < outLoops; i++) {
                 for (int32_t j = 0; j < inLoops; j++) {
-                    float* prices = runBlackScholesModel(spotPrice, timeSteps, riskRate, volatility);
+                    float* prices = runBlackScholesModel(m_spotPrice, timeSteps, riskRate, volatility);
                     for (int32_t k = 0; k < timeSteps; k++) {
                         stock[j][k] = prices[k];
                     }
@@ -203,8 +209,8 @@ private:
     }
 
     int m_numThreads;
+    float m_spotPrice;
     static constexpr int32_t inLoops = 100;     // Inner loop iterations
     static constexpr int32_t outLoops = 10000;  // Outer loop iterations
     static constexpr int32_t timeSteps = 180;   // Stock market time-intervals (min)
-    static constexpr float spotPrice = 100.0f;  // Spot price (at t = 0)
 };
